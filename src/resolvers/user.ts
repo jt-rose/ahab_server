@@ -11,7 +11,7 @@ class UsernamePasswordInput {
     password: string
 }
 
-@ObjectType()// replace with union
+@ObjectType()
 class UserResponse {
     @Field(() => [FieldError], { nullable: true})
     errors?: FieldError[]
@@ -86,7 +86,7 @@ export class UserResolver {
     @Mutation(() => UserResponse)
     async login(
         @Arg('options', () => UsernamePasswordInput) options: UsernamePasswordInput,
-        @Ctx() { em }: MyContext
+        @Ctx() { em, req }: MyContext
         ): Promise<UserResponse> {
             try {
                 const user = await em.findOne(User, {username: options.username})//.toLowercase()
@@ -108,6 +108,8 @@ export class UserResolver {
                         }
                     ]
                 }
+
+                req.session.userId = user.id
 
                 return {
                     user
