@@ -1,4 +1,4 @@
-import { Resolver, Ctx, Arg, Mutation, Field, InputType, ObjectType } from 'type-graphql'
+import { Resolver, Ctx, Arg, Mutation, Field, InputType, ObjectType, Query } from 'type-graphql'
 import { User } from '../entities/USER'
 import { MyContext } from '../types'
 import argon2 from 'argon2'
@@ -31,6 +31,17 @@ class FieldError {
 
 @Resolver()
 export class UserResolver {
+    @Query(() => User, { nullable: true})
+    async fetchUser(
+        @Ctx() { req, em }: MyContext
+    ) {
+        // if not logged in
+        if (!req.session.userId) return null
+
+        const user = await em.findOne(User, {id: req.session.userId})
+        return user
+    }
+
     @Mutation(() => UserResponse)
     async register(
         @Arg('options', () => UsernamePasswordInput) options: UsernamePasswordInput,
