@@ -34,7 +34,7 @@ export class UserResolver {
     @Query(() => User, { nullable: true})
     async fetchUser(
         @Ctx() { req, em }: MyContext
-    ) {
+    ): Promise<User | null> {
         // if not logged in
         if (!req.session.userId) return null
 
@@ -45,7 +45,7 @@ export class UserResolver {
     @Mutation(() => UserResponse)
     async register(
         @Arg('options', () => UsernamePasswordInput) options: UsernamePasswordInput,
-        @Ctx() { em }: MyContext
+        @Ctx() { req, em }: MyContext
         ): Promise<UserResponse> {
             if (options.username.length <= 2 ) {
                 return {
@@ -73,6 +73,9 @@ export class UserResolver {
                 const hashedPassword = await argon2.hash(options.username)
                 const user = em.create(User, { username: options.username, password: hashedPassword})
                 await em.persistAndFlush(user)
+
+                // set user cookie
+                req.session.userId = user.id
                 return  { user }
             } catch(err) {
                 if (err.code === '23505') return {

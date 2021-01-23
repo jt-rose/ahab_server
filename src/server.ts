@@ -12,6 +12,8 @@ import mikroConfig from './mikro-orm.config'
 //import { Post } from './entities/POST'
 
 import express from 'express'
+import cors from 'cors'
+import logger from 'morgan'
 import { ApolloServer } from 'apollo-server-express'
 import { buildSchema } from 'type-graphql'
 import { HelloResolver } from './resolvers/hello'
@@ -53,6 +55,12 @@ const main = async () => {
 
     const RedisStore = connectRedis(session)
     const redisClient = redis.createClient() // auto connect if running on localhost
+    
+    app.use(logger('dev'))
+    app.use(
+        cors({ 
+        origin: 'http://localhost:5000', 
+        credentials: true}))
     app.use(
         session({
           name: 'qid',
@@ -82,7 +90,7 @@ const main = async () => {
         context: ({ req, res}): MyContext => ({ em: orm.em, req, res })
     })
 
-    apolloServer.applyMiddleware({ app })
+    apolloServer.applyMiddleware({ app, cors: false })
 
     const port = 5000
     app.listen(port, () => {
