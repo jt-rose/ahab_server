@@ -80,7 +80,7 @@ export class UserResolver {
         return {
           errors: [
             {
-              field: 'username',
+              field: 'usernameOrEmail',
               message: 'username already registered',
             },
           ],
