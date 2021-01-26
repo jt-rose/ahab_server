@@ -7,7 +7,7 @@ require('dotenv').config()
 
 import 'reflect-metadata' // necessary?
 import { MikroORM } from '@mikro-orm/core'
-import { __PROD__ } from './constants'
+import { COOKIE_NAME, __PROD__ } from './constants'
 import mikroConfig from './mikro-orm.config'
 //import { Post } from './entities/POST'
 
@@ -24,23 +24,28 @@ import session from 'express-session'
 import connectRedis from 'connect-redis'
 import { MyContext } from './types'
 
-
 /* --------------------------- init main function --------------------------- */
 
 const main = async () => {
-    
-/* ------------------------- connect to Mikro-ORM DB ------------------------ */
+  /* ------------------------- connect to Mikro-ORM DB ------------------------ */
 
-    const orm = await MikroORM.init(mikroConfig)
-    await orm.getMigrator().up()
+  const orm = await MikroORM.init(mikroConfig)
 
-    /*
+  // error of sql duplication in migration
+  // manually added new column/ constraint in pgAdmin
+  // but now migrator is running into an error
+  // unure how to reset it, so I am simply blocking it out
+  // and handling it manually for now
+
+  //await orm.getMigrator().up()
+
+  /*
     const post = orm.em.create(Post, { title: 'testing out orm'})
     orm.em.persistAndFlush(post)
     const currentPosts = await orm.em.find(Post, {title: 'testing out orm'})
     console.log(currentPosts)*/
 
-    /*
+  /*
     const client = new pg.Client({
         connectionString: ''
     })
@@ -49,58 +54,59 @@ const main = async () => {
     console.log(x.rows[0])
     */
 
-/* --------------------------- initialize express --------------------------- */
+  /* --------------------------- initialize express --------------------------- */
 
-    const app = express()
+  const app = express()
 
-    const RedisStore = connectRedis(session)
-    const redisClient = redis.createClient() // auto connect if running on localhost
-    
-    app.use(logger('dev'))
-    app.use(
-        cors({ 
-        origin: 'http://localhost:3000', 
-        credentials: true}))
-    app.use(
-        session({
-          name: 'qid',
-          store: new RedisStore({ 
-              client: redisClient,
-              disableTouch: true,
-             }),
-             cookie: {
-                 maxAge: 1000 * 60 * 60 * 24 * 365 * 10,
-                 httpOnly: true,
-                 sameSite: 'lax',
-                 secure: __PROD__ // disable for dev in localhost
-             },
-          secret: process.env.COOKIE_SECRET as string,
-          resave: false,
-          saveUninitialized: false
-        })
-      )
+  const RedisStore = connectRedis(session)
+  const redisClient = redis.createClient() // auto connect if running on localhost
 
-/* ---------------------------- initalize apollo ---------------------------- */
-
-    const apolloServer = new ApolloServer({
-        schema: await buildSchema({
-            resolvers: [HelloResolver, PostResolver, UserResolver],
-            validate: false
-        }),
-        context: ({ req, res}): MyContext => ({ em: orm.em, req, res })
+  app.use(logger('dev'))
+  app.use(
+    cors({
+      origin: 'http://localhost:3000',
+      credentials: true,
     })
-
-    apolloServer.applyMiddleware({ app, cors: false })
-
-    const port = 5000
-    app.listen(port, () => {
-        console.log(`server listening on port ${port}`)
+  )
+  app.use(
+    session({
+      name: COOKIE_NAME,
+      store: new RedisStore({
+        client: redisClient,
+        disableTouch: true,
+      }),
+      cookie: {
+        maxAge: 1000 * 60 * 60 * 24 * 365 * 10,
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: __PROD__, // disable for dev in localhost
+      },
+      secret: process.env.COOKIE_SECRET as string,
+      resave: false,
+      saveUninitialized: false,
     })
+  )
 
+  /* ---------------------------- initalize apollo ---------------------------- */
+
+  const apolloServer = new ApolloServer({
+    schema: await buildSchema({
+      resolvers: [HelloResolver, PostResolver, UserResolver],
+      validate: false,
+    }),
+    context: ({ req, res }): MyContext => ({ em: orm.em, req, res }),
+  })
+
+  apolloServer.applyMiddleware({ app, cors: false })
+
+  const port = 5000
+  app.listen(port, () => {
+    console.log(`server listening on port ${port}`)
+  })
 }
 
 /* ------------------------------- launch app ------------------------------- */
 
-main().catch( err => {
-    console.log(err)
+main().catch((err) => {
+  console.log(err)
 })
