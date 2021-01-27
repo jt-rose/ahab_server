@@ -11,9 +11,11 @@ import { User } from '../entities/USER'
 import { MyContext } from '../types'
 import argon2 from 'argon2'
 //import { EntityManager } from '@mikro-orm/postgresql'
-import { COOKIE_NAME } from '../constants'
+import { COOKIE_NAME, FORGET_PASSWORD_PREFIX } from '../constants'
 import { validateRegister } from '../utils/validateRegister'
 import { UserInput } from './UserInput'
+import { sendEmail } from '../utils/sendEmail'
+import { v4 } from 'uuid'
 
 @ObjectType()
 class UserResponse {
@@ -111,7 +113,7 @@ export class UserResolver {
         return {
           errors: [
             {
-              field: 'username',
+              field: 'usernameOrEmail',
               message: 'no such user',
             },
           ],
@@ -155,8 +157,25 @@ export class UserResolver {
   }
 
   @Mutation(() => Boolean)
-  async forgotPassword(@Arg('email') email: string, @Ctx() { em }: MyContext) {
-    //const user = await em.findOne(User, { email })
+  async forgotPassword(
+    @Arg('email') email: string,
+    @Ctx() { em, redis }: MyContext
+  ) {
+    const user = await em.findOne(User, { email })
+    if (!user) {
+      // no email in database - don't tell user
+      return true
+    }
+    const token = v4()
+    await redis.set(
+      FORGET_PASSWORD_PREFIX + token,
+      user.id,
+      'ex',
+      1000 * 60 * 60
+    )
+    const resetLink = `<a href="http://localhost:3000/change-password/${token}}">reset password</a>`
+    await sendEmail(email, resetLink).catch((err) => console.error(err))
+
     return true
   }
 }
