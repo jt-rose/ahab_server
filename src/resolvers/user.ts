@@ -166,6 +166,7 @@ export class UserResolver {
       // no email in database - don't tell user
       return true
     }
+
     const token = v4()
     await redis.set(
       FORGET_PASSWORD_PREFIX + token,
@@ -222,17 +223,21 @@ export class UserResolver {
     }
 
     const hashedPassword = await argon2.hash(newPassword)
-    const updatedUser = {
+    user.password = hashedPassword
+    /*const updatedUser = {
       ...user,
       password: hashedPassword,
-    }
-    await em.persistAndFlush(updatedUser)
+    }*/
+
+    // note: functional pattern of obj destructuring caused error
+    // with em.persistAndFlush
+    await em.persistAndFlush(user)
 
     // login after changing password
     req.session.userId = user.id
 
     return {
-      user: updatedUser,
+      user: user,
     }
   }
 }
