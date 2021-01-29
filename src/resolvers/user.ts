@@ -168,13 +168,14 @@ export class UserResolver {
     }
 
     const token = v4()
+    console.log('key: ' + FORGET_PASSWORD_PREFIX + token)
     await redis.set(
       FORGET_PASSWORD_PREFIX + token,
       user.id,
       'ex',
       1000 * 60 * 60
     )
-    const resetLink = `<a href="http://localhost:3000/change-password/${token}}">reset password</a>`
+    const resetLink = `<a href="http://localhost:3000/change-password/${token}">reset password</a>`
     await sendEmail(email, resetLink).catch((err) => console.error(err))
 
     return true
@@ -197,8 +198,9 @@ export class UserResolver {
         ],
       }
     }
-
-    const userId = await redis.get(FORGET_PASSWORD_PREFIX + token)
+    const key = FORGET_PASSWORD_PREFIX + token
+    console.log('key: ' + key)
+    const userId = await redis.get(key)
     if (!userId) {
       return {
         errors: [
@@ -232,6 +234,9 @@ export class UserResolver {
     // note: functional pattern of obj destructuring caused error
     // with em.persistAndFlush
     await em.persistAndFlush(user)
+
+    // delete redis change-password session
+    await redis.del(key)
 
     // login after changing password
     req.session.userId = user.id
