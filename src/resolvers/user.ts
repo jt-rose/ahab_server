@@ -69,10 +69,8 @@ export class UserResolver {
         .returning('*')
         .execute()
 
-      console.log('result: ' + result)
-
       // set user cookie
-      const user = result.raw
+      const user = result.raw[0]
       req.session.userId = user.id
       return { user }
     } catch (err) {
