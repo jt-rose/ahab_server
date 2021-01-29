@@ -10,12 +10,12 @@ import {
 import { User } from '../entities/USER'
 import { MyContext } from '../types'
 import argon2 from 'argon2'
-//import { EntityManager } from '@mikro-orm/postgresql'
 import { COOKIE_NAME, FORGET_PASSWORD_PREFIX } from '../constants'
 import { validateRegister } from '../utils/validateRegister'
 import { UserInput } from './UserInput'
 import { sendEmail } from '../utils/sendEmail'
 import { v4 } from 'uuid'
+import { getConnection } from 'typeorm'
 
 @ObjectType()
 class UserResponse {
@@ -40,41 +40,39 @@ class FieldError {
 @Resolver()
 export class UserResolver {
   @Query(() => User, { nullable: true })
-  async fetchUser(@Ctx() { req, em }: MyContext): Promise<User | null> {
+  fetchUser(@Ctx() { req }: MyContext) {
     // if not logged in
     if (!req.session.userId) return null
 
-    const user = await em.findOne(User, { id: req.session.userId })
-    return user
+    return User.findOne(req.session.userId)
   }
 
   @Mutation(() => UserResponse)
   async register(
     @Arg('options', () => UserInput) options: UserInput,
-    @Ctx() { req, em }: MyContext
+    @Ctx() { req }: MyContext
   ): Promise<UserResponse> {
     const errors = validateRegister(options)
     if (errors) return { errors }
 
     const hashedPassword = await argon2.hash(options.username)
-    const user = em.create(User, {
-      username: options.username,
-      password: hashedPassword,
-      email: options.email,
-    })
     try {
-      // unused mikro-orm call with query builder
-      /*
-      const [user] = await (em as EntityManager).createQueryBuilder(User).getKnexQuery().insert({
-        username: options.username,
-        password: hashedPassword,
-        created_at: new Date(),
-        updated_at: new Date(),
-      }).returning('*')
-      */
-      await em.persistAndFlush(user)
+      const result = await getConnection()
+        .createQueryBuilder()
+        .insert()
+        .into(User)
+        .values({
+          username: options.username,
+          password: hashedPassword,
+          email: options.email,
+        })
+        .returning('*')
+        .execute()
+
+      console.log('result: ' + result)
 
       // set user cookie
+      const user = result.raw
       req.session.userId = user.id
       return { user }
     } catch (err) {
@@ -102,13 +100,13 @@ export class UserResolver {
   async login(
     @Arg('usernameOrEmail') usernameOrEmail: string,
     @Arg('password') password: string,
-    @Ctx() { em, req }: MyContext
+    @Ctx() { req }: MyContext
   ): Promise<UserResponse> {
     try {
       const searchParam = usernameOrEmail.includes('@')
         ? { email: usernameOrEmail }
         : { username: usernameOrEmail }
-      const user = await em.findOne(User, searchParam) //.toLowercase()
+      const user = await User.findOne({ where: searchParam })
       if (!user)
         return {
           errors: [
@@ -159,9 +157,9 @@ export class UserResolver {
   @Mutation(() => Boolean)
   async forgotPassword(
     @Arg('email') email: string,
-    @Ctx() { em, redis }: MyContext
+    @Ctx() { redis }: MyContext
   ) {
-    const user = await em.findOne(User, { email })
+    const user = await User.findOne({ where: { email } })
     if (!user) {
       // no email in database - don't tell user
       return true
@@ -185,7 +183,7 @@ export class UserResolver {
   async changePassword(
     @Arg('token') token: string,
     @Arg('newPassword') newPassword: string,
-    @Ctx() { redis, em, req }: MyContext
+    @Ctx() { redis, req }: MyContext
   ): Promise<UserResponse> {
     // validate new password
     if (newPassword.length <= 2) {
@@ -200,8 +198,8 @@ export class UserResolver {
     }
     const key = FORGET_PASSWORD_PREFIX + token
     console.log('key: ' + key)
-    const userId = await redis.get(key)
-    if (!userId) {
+    const redisId = await redis.get(key)
+    if (!redisId) {
       return {
         errors: [
           {
@@ -212,7 +210,8 @@ export class UserResolver {
       }
     }
 
-    const user = await em.findOne(User, { id: parseInt(userId) })
+    const userId = parseInt(redisId)
+    const user = await User.findOne(userId)
     if (!user) {
       return {
         errors: [
@@ -233,7 +232,7 @@ export class UserResolver {
 
     // note: functional pattern of obj destructuring caused error
     // with em.persistAndFlush
-    await em.persistAndFlush(user)
+    await User.update({ id: userId }, { password: hashedPassword })
 
     // delete redis change-password session
     await redis.del(key)

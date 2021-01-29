@@ -17,14 +17,9 @@
     "start": "node dist/server.js",
     "dev": "nodemon dist/server.js",
     "watch": "tsc -w",
-    "tsnode": "ts-node src/server.ts",
-    "create:migration": "mikro-orm migration:create"
+    "tsnode": "ts-node src/server.ts"
   },
   "dependencies": {
-    "@mikro-orm/cli": "^4.3.4",
-    "@mikro-orm/core": "^4.3.4",
-    "@mikro-orm/migrations": "^4.3.4",
-    "@mikro-orm/postgresql": "^4.3.4",
     "@types/argon2": "^0.15.0",
     "@types/connect-redis": "^0.0.16",
     "@types/dotenv": "^8.2.0",
@@ -48,13 +43,7 @@
     "pg": "^8.5.1",
     "reflect-metadata": "^0.1.13",
     "type-graphql": "^1.1.1",
+    "typeorm": "^0.2.30",
     "uuid": "^8.3.2"
-  },
-  "mikro-orm": {
-    "useTsNode": true,
-    "configPaths": [
-      "./src/mikro-orm.config.ts",
-      "./dist/mikro-orm.config.js"
-    ]
   }
 }

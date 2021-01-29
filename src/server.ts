@@ -5,11 +5,9 @@ require('dotenv').config()
 //import pg from 'pg'
 //import joi from 'joi'
 
-import 'reflect-metadata' // necessary?
-import { MikroORM } from '@mikro-orm/core'
+import 'reflect-metadata'
+import { createConnection } from 'typeorm'
 import { COOKIE_NAME, __PROD__ } from './constants'
-import mikroConfig from './mikro-orm.config'
-//import { Post } from './entities/POST'
 
 import express from 'express'
 import cors from 'cors'
@@ -23,36 +21,25 @@ import Redis from 'ioredis'
 import session from 'express-session'
 import connectRedis from 'connect-redis'
 import { MyContext } from './types'
+import { Post } from './entities/POST'
+import { User } from './entities/USER'
 
 /* --------------------------- init main function --------------------------- */
 
 const main = async () => {
-  /* ------------------------- connect to Mikro-ORM DB ------------------------ */
+  /* ------------------------- connect to TypeORM DB ------------------------ */
 
-  const orm = await MikroORM.init(mikroConfig)
-
-  // error of sql duplication in migration
-  // manually added new column/ constraint in pgAdmin
-  // but now migrator is running into an error
-  // unure how to reset it, so I am simply blocking it out
-  // and handling it manually for now
-
-  //await orm.getMigrator().up()
-
-  /*
-    const post = orm.em.create(Post, { title: 'testing out orm'})
-    orm.em.persistAndFlush(post)
-    const currentPosts = await orm.em.find(Post, {title: 'testing out orm'})
-    console.log(currentPosts)*/
-
-  /*
-    const client = new pg.Client({
-        connectionString: ''
-    })
-    await client.connect()
-    const x = await client.query('SELECT NOW()')
-    console.log(x.rows[0])
-    */
+  const conn = await createConnection({
+    type: 'postgres',
+    database: 'ahab',
+    username: 'postgres',
+    password: process.env.LOCAL_PASSWORD,
+    port: 8000,
+    logging: true,
+    synchronize: true,
+    entities: [User, Post],
+  })
+  console.log(conn.isConnected)
 
   /* --------------------------- initialize express --------------------------- */
 
@@ -94,7 +81,7 @@ const main = async () => {
       resolvers: [HelloResolver, PostResolver, UserResolver],
       validate: false,
     }),
-    context: ({ req, res }): MyContext => ({ em: orm.em, req, res, redis }),
+    context: ({ req, res }): MyContext => ({ req, res, redis }),
   })
 
   apolloServer.applyMiddleware({ app, cors: false })
