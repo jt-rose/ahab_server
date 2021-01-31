@@ -312,5 +312,5 @@ Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus
         `)
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {}
+  public async down(_queryRunner: QueryRunner): Promise<void> {}
 }
