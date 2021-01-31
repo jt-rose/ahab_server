@@ -9,12 +9,29 @@ import {
   UseMiddleware,
 } from 'type-graphql'
 import { Post } from '../entities/POST'
+import { getConnection } from 'typeorm'
 
 @Resolver()
 export class PostResolver {
   @Query(() => [Post])
-  async posts(): Promise<Post[]> {
-    return Post.find()
+  async posts(
+    @Arg('limit') limit: number,
+    @Arg('cursor', () => String, { nullable: true }) cursor: string | null // sort by newest
+  ): Promise<Post[]> {
+    const realLimit = Math.min(50, limit)
+    const queryBuilder = getConnection()
+      .getRepository(Post)
+      .createQueryBuilder('p')
+      .orderBy('"createdAt"', 'DESC') //postgres will make lowercase unless "" wrapped in '
+      .take(realLimit)
+
+    if (cursor) {
+      return queryBuilder
+        .where('"createdAt" < :cursor', { cursor: new Date(parseInt(cursor)) })
+        .getMany()
+    } else {
+      return queryBuilder.getMany()
+    }
   }
 
   @Query(() => Post, { nullable: true })
