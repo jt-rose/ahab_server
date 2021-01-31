@@ -23,6 +23,7 @@ import connectRedis from 'connect-redis'
 import { MyContext } from './types'
 import { Post } from './entities/POST'
 import { User } from './entities/USER'
+import path from 'path'
 
 /* --------------------------- init main function --------------------------- */
 
@@ -38,8 +39,10 @@ const main = async () => {
     logging: true,
     synchronize: true,
     entities: [User, Post],
+    migrations: [path.join(__dirname, './migrations/*')],
   })
-  console.log(conn.isConnected)
+
+  await conn.runMigrations()
 
   /* --------------------------- initialize express --------------------------- */
 

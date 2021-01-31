@@ -7,6 +7,7 @@ import {
   Mutation,
   Ctx,
   UseMiddleware,
+  Int,
 } from 'type-graphql'
 import { Post } from '../entities/POST'
 import { getConnection } from 'typeorm'
@@ -15,7 +16,7 @@ import { getConnection } from 'typeorm'
 export class PostResolver {
   @Query(() => [Post])
   async posts(
-    @Arg('limit') limit: number,
+    @Arg('limit', () => Int) limit: number,
     @Arg('cursor', () => String, { nullable: true }) cursor: string | null // sort by newest
   ): Promise<Post[]> {
     const realLimit = Math.min(50, limit)
