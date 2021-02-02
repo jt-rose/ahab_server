@@ -35,6 +35,7 @@ export class Post extends BaseEntity {
 
   //set up foreign key to user
   // connect to entity, then connect to entity property
+  @Field()
   @ManyToOne(() => User, (user) => user.posts)
   creator: User
 
