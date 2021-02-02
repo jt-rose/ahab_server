@@ -10,9 +10,20 @@ import {
   Int,
   FieldResolver,
   Root,
+  Field,
+  ObjectType,
 } from 'type-graphql'
 import { Post } from '../entities/POST'
 import { getConnection } from 'typeorm'
+
+@ObjectType()
+class PaginatedPosts {
+  @Field(() => [Post])
+  posts: Post[]
+
+  @Field()
+  hasMore: boolean
+}
 
 @Resolver(Post)
 export class PostResolver {
@@ -21,24 +32,30 @@ export class PostResolver {
     return root.text.slice(0, 50)
   }
 
-  @Query(() => [Post])
+  @Query(() => PaginatedPosts)
   async posts(
     @Arg('limit', () => Int) limit: number,
     @Arg('cursor', () => String, { nullable: true }) cursor: string | null // sort by newest
-  ): Promise<Post[]> {
+  ): Promise<PaginatedPosts> {
     const realLimit = Math.min(50, limit)
+    const realLimitPlusOne = realLimit + 1 // grab one more to check remaining
     const queryBuilder = getConnection()
       .getRepository(Post)
       .createQueryBuilder('p')
       .orderBy('"createdAt"', 'DESC') //postgres will make lowercase unless "" wrapped in '
-      .take(realLimit)
+      .take(realLimitPlusOne)
 
     if (cursor) {
-      return queryBuilder
-        .where('"createdAt" < :cursor', { cursor: new Date(parseInt(cursor)) })
-        .getMany()
-    } else {
-      return queryBuilder.getMany()
+      queryBuilder.where('"createdAt" < :cursor', {
+        cursor: new Date(parseInt(cursor)),
+      })
+    }
+
+    const posts = await queryBuilder.getMany()
+
+    return {
+      posts: posts.slice(0, realLimit),
+      hasMore: posts.length === realLimitPlusOne,
     }
   }
 
