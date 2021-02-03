@@ -9,6 +9,7 @@ import {
 } from 'typeorm'
 import { Field, Int, ObjectType } from 'type-graphql'
 import { Post } from './POST'
+import { Updoot } from './UPDOOT'
 
 @ObjectType()
 @Entity()
@@ -39,4 +40,7 @@ export class User extends BaseEntity {
   @Field(() => String)
   @UpdateDateColumn()
   updatedAt: Date
+
+  @OneToMany(() => Updoot, (updoot) => updoot.user)
+  updoots: Updoot[]
 }

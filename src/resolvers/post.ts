@@ -15,6 +15,7 @@ import {
 } from 'type-graphql'
 import { Post } from '../entities/POST'
 import { getConnection } from 'typeorm'
+import { Updoot } from '../entities/UPDOOT'
 
 @ObjectType()
 class PaginatedPosts {
@@ -30,6 +31,32 @@ export class PostResolver {
   @FieldResolver(() => String)
   textSnippet(@Root() root: Post) {
     return root.text.slice(0, 50)
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware(isAuth)
+  async vote(
+    @Arg('postId', () => Int) postId: number,
+    @Arg('value', () => Int) value: number,
+    @Ctx() { req }: MyContext
+  ) {
+    const isUpdoot = value !== -1
+    const realValue = isUpdoot ? 1 : -1
+    const { userId } = req.session
+    await Updoot.insert({
+      userId,
+      postId,
+      value: realValue,
+    })
+    await getConnection().query(
+      `
+    UPDATE post
+    SET points = points + $1
+    WHERE id = $2
+    `,
+      [realValue, postId]
+    )
+    return true
   }
 
   @Query(() => PaginatedPosts)
@@ -63,22 +90,7 @@ export class PostResolver {
     `,
       replacements
     )
-    /*
-    const queryBuilder = getConnection()
-      .getRepository(Post)
-      .createQueryBuilder('p')
-      .innerJoinAndSelect('p.creator', 'u', 'u.id = p."creatorId"')
-      .orderBy('p."createdAt"', 'DESC') //postgres will make lowercase unless "" wrapped in '
-      .take(realLimitPlusOne)
-    
-    if (cursor) {
-      queryBuilder.where('p."createdAt" < :cursor', {
-        cursor: new Date(parseInt(cursor)),
-      })
-    }
 
-    const posts = await queryBuilder.getMany()
-    */
     return {
       posts: posts.slice(0, realLimit),
       hasMore: posts.length === realLimitPlusOne,

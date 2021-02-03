@@ -6,9 +6,11 @@ import {
   UpdateDateColumn,
   ManyToOne,
   BaseEntity,
+  OneToMany,
 } from 'typeorm'
 import { Field, Int, ObjectType } from 'type-graphql'
 import { User } from './USER'
+import { Updoot } from './UPDOOT'
 
 @ObjectType()
 @Entity()
@@ -35,7 +37,7 @@ export class Post extends BaseEntity {
 
   //set up foreign key to user
   // connect to entity, then connect to entity property
-  @Field()
+  @Field(() => User)
   @ManyToOne(() => User, (user) => user.posts)
   creator: User
 
@@ -46,4 +48,7 @@ export class Post extends BaseEntity {
   @Field(() => String)
   @UpdateDateColumn()
   updatedAt: Date
+
+  @OneToMany(() => Updoot, (updoot) => updoot.post)
+  updoots: Updoot[]
 }

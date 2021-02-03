@@ -1,3 +1,4 @@
+import { Updoot } from './entities/UPDOOT'
 /* --------------------------------- imports -------------------------------- */
 
 require('dotenv').config()
@@ -38,7 +39,7 @@ const main = async () => {
     port: 8000,
     logging: true,
     synchronize: true,
-    entities: [User, Post],
+    entities: [User, Post, Updoot],
     migrations: [path.join(__dirname, './migrations/*')],
   })
 
