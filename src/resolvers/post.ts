@@ -15,7 +15,6 @@ import {
 } from 'type-graphql'
 import { Post } from '../entities/POST'
 import { getConnection } from 'typeorm'
-import { Updoot } from '../entities/UPDOOT'
 
 @ObjectType()
 class PaginatedPosts {
@@ -43,18 +42,22 @@ export class PostResolver {
     const isUpdoot = value !== -1
     const realValue = isUpdoot ? 1 : -1
     const { userId } = req.session
-    await Updoot.insert({
+    /*await Updoot.insert({
       userId,
       postId,
       value: realValue,
-    })
+    })*/
     await getConnection().query(
+      // all content are number type, so direct insert possible
       `
+    START TRANSACTION;
+    INSERT INTO updoot ("userId", "postId", value)
+    values (${userId}, ${postId}, ${realValue});
     UPDATE post
-    SET points = points + $1
-    WHERE id = $2
-    `,
-      [realValue, postId]
+    SET points = points + ${realValue}
+    WHERE id = ${postId};
+    COMMIT;
+    `
     )
     return true
   }
