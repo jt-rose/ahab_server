@@ -6,6 +6,8 @@ import {
   Field,
   ObjectType,
   Query,
+  Root,
+  FieldResolver,
 } from 'type-graphql'
 import { User } from '../entities/USER'
 import { MyContext } from '../types'
@@ -37,8 +39,17 @@ class FieldError {
 
 /* ------------------------------ User resolver ----------------------------- */
 
-@Resolver()
+@Resolver(User)
 export class UserResolver {
+  @FieldResolver(() => String)
+  email(@Root() user: User, @Ctx() { req }: MyContext) {
+    // show email only of current user
+    if (req.session.userId === user.id) {
+      return user.email
+    }
+    return ''
+  }
+
   @Query(() => User, { nullable: true })
   fetchUser(@Ctx() { req }: MyContext) {
     // if not logged in
