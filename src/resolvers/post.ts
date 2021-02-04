@@ -15,6 +15,7 @@ import {
 } from 'type-graphql'
 import { Post } from '../entities/POST'
 import { getConnection } from 'typeorm'
+import { Updoot } from '../entities/UPDOOT'
 
 @ObjectType()
 class PaginatedPosts {
@@ -42,23 +43,59 @@ export class PostResolver {
     const isUpdoot = value !== -1
     const realValue = isUpdoot ? 1 : -1
     const { userId } = req.session
-    /*await Updoot.insert({
-      userId,
-      postId,
-      value: realValue,
-    })*/
-    await getConnection().query(
-      // all content are number type, so direct insert possible
-      `
-    START TRANSACTION;
-    INSERT INTO updoot ("userId", "postId", value)
-    values (${userId}, ${postId}, ${realValue});
-    UPDATE post
-    SET points = points + ${realValue}
-    WHERE id = ${postId};
-    COMMIT;
-    `
-    )
+
+    // check if entry already in db
+    const updoot = await Updoot.findOne({
+      where: {
+        postId,
+        userId,
+      },
+    })
+
+    // the user has voted on this post before
+    // voted before, now changing vote
+    if (updoot && updoot.value !== realValue) {
+      await getConnection().transaction(async (tm) => {
+        await tm.query(
+          `
+        UPDATE updoot
+        SET value = $1
+        WHERE "postId" = $2 AND "userId" = $3
+        `,
+          [realValue, postId, userId]
+        )
+
+        await tm.query(
+          `
+        UPDATE post
+    SET points = points + $1
+    WHERE id = $2
+        `,
+          [realValue * 2, postId]
+        )
+      })
+
+      // never voted before
+    } else if (!updoot) {
+      await getConnection().transaction(async (tm) => {
+        await tm.query(
+          `
+        INSERT INTO updoot ("userId", "postId", value)
+    values ($1, $2, $3)
+        `,
+          [userId, postId, realValue]
+        )
+
+        await tm.query(
+          `
+        UPDATE post
+    SET points = points + $1
+    WHERE id = $2
+        `,
+          [realValue, postId]
+        )
+      })
+    }
     return true
   }
 
