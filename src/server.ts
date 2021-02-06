@@ -1,3 +1,5 @@
+import { createUpdootLoader } from './utils/createUpdootLoader'
+import { createUserLoader } from './utils/createUserLoader'
 import { Updoot } from './entities/UPDOOT'
 /* --------------------------------- imports -------------------------------- */
 
@@ -85,7 +87,13 @@ const main = async () => {
       resolvers: [HelloResolver, PostResolver, UserResolver],
       validate: false,
     }),
-    context: ({ req, res }): MyContext => ({ req, res, redis }),
+    context: ({ req, res }): MyContext => ({
+      req,
+      res,
+      redis,
+      userLoader: createUserLoader(),
+      updootLoader: createUpdootLoader(),
+    }),
   })
 
   apolloServer.applyMiddleware({ app, cors: false })
