@@ -182,6 +182,7 @@ export class UserResolver {
       'ex',
       1000 * 60 * 60
     )
+    // add prod origin when ready
     const resetLink = `<a href="http://localhost:3000/change-password/${token}">reset password</a>`
     await sendEmail(email, resetLink).catch((err) => console.error(err))
 

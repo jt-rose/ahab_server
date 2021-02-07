@@ -40,7 +40,7 @@ const main = async () => {
     password: process.env.LOCAL_PASSWORD,
     port: 8000,
     logging: true,
-    synchronize: true,
+    //synchronize: true, disable in prod 12:16
     entities: [User, Post, Updoot],
     migrations: [path.join(__dirname, './migrations/*')],
   })
@@ -54,10 +54,11 @@ const main = async () => {
   const RedisStore = connectRedis(session)
   const redis = new Redis() // auto connect if running on localhost
 
+  app.set('trust proxy', 1) // for use in prod with nginx
   app.use(logger('dev'))
   app.use(
     cors({
-      origin: 'http://localhost:3000',
+      origin: process.env.CORS_ORIGIN,
       credentials: true,
     })
   )
@@ -73,6 +74,7 @@ const main = async () => {
         httpOnly: true,
         sameSite: 'lax',
         secure: __PROD__, // disable for dev in localhost
+        // add domain when in prod
       },
       secret: process.env.COOKIE_SECRET as string,
       resave: false,
@@ -98,8 +100,8 @@ const main = async () => {
 
   apolloServer.applyMiddleware({ app, cors: false })
 
-  const port = 5000
-  app.listen(port, () => {
+  const port = process.env.SERVER_PORT as string
+  app.listen(parseInt(port), () => {
     console.log(`server listening on port ${port}`)
   })
 }
